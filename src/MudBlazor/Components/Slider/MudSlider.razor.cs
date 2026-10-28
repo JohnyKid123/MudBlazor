@@ -16,6 +16,7 @@ namespace MudBlazor
         private bool _nullableValueResetToDefault = false;
         private readonly ParameterState<T> _valueState;
         private readonly ParameterState<T?> _nullableValueState;
+        private readonly string _labelId = Identifier.Create("slider-label");
 
         public MudSlider()
         {
@@ -28,6 +29,24 @@ namespace MudBlazor
                 .WithParameter(() => NullableValue)
                 .WithEventCallback(() => NullableValueChanged)
                 .WithChangeHandler(OnNullableValueParameterChangedAsync);
+        }
+
+        // aria-labelledby overrides aria-label in the accessible name calculation, so a caller-supplied name must suppress the generated reference.
+        private string? AriaLabelledBy =>
+            ChildContent is not null && !HasCallerAccessibleName() ? _labelId : null;
+
+        private bool HasCallerAccessibleName()
+        {
+            foreach (var key in UserAttributes.Keys)
+            {
+                if (key.Equals("aria-label", StringComparison.OrdinalIgnoreCase)
+                    || key.Equals("aria-labelledby", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         protected string Classname =>
@@ -83,6 +102,7 @@ namespace MudBlazor
         /// </summary>
         /// <remarks>
         /// Typically used for displaying text.   When the slider is vertical, content is displayed to the left of the slider.
+        /// This content names the range input unless <c>aria-label</c> or <c>aria-labelledby</c> is set.
         /// </remarks>
         [Parameter]
         [Category(CategoryTypes.Slider.Behavior)]

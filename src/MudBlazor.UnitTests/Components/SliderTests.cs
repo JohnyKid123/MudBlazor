@@ -513,5 +513,83 @@ namespace MudBlazor.UnitTests.Components
             IRenderedComponent<MudAlert> MudAlert() => comp.FindComponent<MudAlert>();
             AlertText().InnerHtml.Should().Be("20");
         }
+
+        /// <summary>
+        /// The range input is named by the visible label rendered from <c>ChildContent</c> (#13973).
+        /// </summary>
+        [Test]
+        public void ChildContent_LabelsInput()
+        {
+            var comp = Context.Render<MudSlider<double>>(parameters => parameters.AddChildContent("Volume"));
+
+            var input = comp.Find("input.mud-slider-input");
+            var labelId = input.GetAttribute("aria-labelledby");
+
+            labelId.Should().NotBeNullOrWhiteSpace();
+            var label = comp.Find($"[id='{labelId}']");
+            label.TextContent.Should().Be("Volume");
+            label.ClassList.Should().Contain("mud-typography");
+        }
+
+        /// <summary>
+        /// Without <c>ChildContent</c> the range input does not reference a label.
+        /// </summary>
+        [Test]
+        public void NoChildContent_DoesNotReferenceLabel()
+        {
+            var comp = Context.Render<MudSlider<double>>();
+
+            comp.Find("input.mud-slider-input").HasAttribute("aria-labelledby").Should().BeFalse();
+            comp.FindAll("[id^='slider-label']").Should().BeEmpty();
+        }
+
+        /// <summary>
+        /// Each slider instance uses its own label id so accessible names do not collide.
+        /// </summary>
+        [Test]
+        public void MultipleSliders_HaveDistinctLabelIds()
+        {
+            var first = Context.Render<MudSlider<double>>(parameters => parameters.AddChildContent("Volume"));
+            var second = Context.Render<MudSlider<double>>(parameters => parameters.AddChildContent("Balance"));
+
+            var firstId = first.Find("input.mud-slider-input").GetAttribute("aria-labelledby");
+            var secondId = second.Find("input.mud-slider-input").GetAttribute("aria-labelledby");
+
+            firstId.Should().NotBeNullOrWhiteSpace();
+            secondId.Should().NotBeNullOrWhiteSpace();
+            firstId.Should().NotBe(secondId);
+            first.Find($"[id='{firstId}']").TextContent.Should().Be("Volume");
+            second.Find($"[id='{secondId}']").TextContent.Should().Be("Balance");
+        }
+
+        /// <summary>
+        /// A caller-provided <c>aria-label</c> names the input instead of the visible label.
+        /// </summary>
+        [TestCase("aria-label")]
+        [TestCase("ARIA-LABEL")]
+        public void AriaLabel_TakesPrecedenceOverChildContent(string attributeName)
+        {
+            var comp = Context.Render<MudSlider<double>>(parameters => parameters
+                .AddChildContent("Volume")
+                .AddUnmatched(attributeName, "Master volume"));
+
+            var input = comp.Find("input.mud-slider-input");
+
+            input.GetAttribute("aria-label").Should().Be("Master volume");
+            input.HasAttribute("aria-labelledby").Should().BeFalse();
+        }
+
+        /// <summary>
+        /// A caller-provided <c>aria-labelledby</c> is kept instead of the generated label reference.
+        /// </summary>
+        [Test]
+        public void AriaLabelledBy_TakesPrecedenceOverChildContent()
+        {
+            var comp = Context.Render<MudSlider<double>>(parameters => parameters
+                .AddChildContent("Volume")
+                .AddUnmatched("aria-labelledby", "external-label"));
+
+            comp.Find("input.mud-slider-input").GetAttribute("aria-labelledby").Should().Be("external-label");
+        }
     }
 }
